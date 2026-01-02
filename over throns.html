@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> United Statsq</title>
+    <style>
+        /* --- إعدادات أساسية --- */
+        body {
+            background-color: white;
+            color: #333;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            overflow-x: hidden;
+            user-select: none;
+        }
+
+        h1.game-title { color: #0056b3; text-align: center; margin-bottom: 30px; }
+        h3 { color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+
+        .card {
+            background-color: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            padding: 20px;
+            margin-bottom: 20px;
+            transition: transform 0.2s;
+            position: relative;
+            z-index: 1;
+        }
+        .card:hover { transform: translateY(-2px); }
+
+        /* --- الحقول والأزرار --- */
+        input, select {
+            width: 100%; padding: 12px; margin: 10px 0;
+            border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;
+        }
+        button {
+            background-color: #0056b3; color: white; border: none;
+            padding: 12px 20px; border-radius: 4px; cursor: pointer;
+            width: 100%; font-size: 16px; font-weight: bold; transition: background 0.3s;
+        }
+        button:hover { background-color: #004494; }
+        button.buy-btn { background-color: #34495e; margin-top: 10px; font-size: 14px; }
+        button.buy-btn:hover { background-color: #2c3e50; }
+
+        /* --- الشبكة (Grid) --- */
+        .military-grid { display: flex; gap: 20px; flex-wrap: wrap; }
+        .military-section { flex: 1; min-width: 250px; }
+
+        /* --- شريط المعلومات --- */
+        .stats-bar {
+            display: flex; justify-content: space-between; flex-wrap: wrap;
+            background-color: #f8f9fa; padding: 15px; border-radius: 8px;
+            border: 1px solid #dee2e6; margin-bottom: 20px; font-weight: bold; font-size: 15px;
+        }
+        .power-stat { color: #c0392b; }
+        .defense-stat { color: #27ae60; }
+        .hidden { display: none !important; }
+
+        /* --- CANVAS EXPLOSION --- */
+        #nuke-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 9999; /* فوق كل شيء */
+            pointer-events: none; /* يسمح بالضغط تحته إذا كان مخفياً */
+            display: none;
+        }
+
+        /* --- ANIMATION MODAL (للمشتريات العادية) --- */
+        #animation-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 5000; opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        }
+        #animation-modal.active { opacity: 1; pointer-events: all; }
+        .congrats-text { font-size: 32px; color: #0056b3; margin-bottom: 40px; font-weight: bold; }
+
+        /* رسمة السلاح العادي */
+        .gun-container { position: relative; width: 200px; height: 100px; display: none; }
+        .gun-body { width: 120px; height: 25px; background: #333; position: absolute; top: 40px; left: 20px; border-radius: 2px; }
+        .gun-barrel { width: 60px; height: 8px; background: #555; position: absolute; top: 40px; left: 135px; }
+        .gun-handle { width: 20px; height: 40px; background: #8B4513; position: absolute; top: 60px; left: 30px; transform: skewX(-20deg); }
+        .gun-mag { width: 25px; height: 50px; background: #333; position: absolute; top: 60px; left: 80px; border-radius: 0 0 50% 10%; }
+        .bullet { width: 15px; height: 6px; background: gold; position: absolute; top: 41px; left: 190px; opacity: 0; border-radius: 0 50% 50% 0; }
+        
+        .shoot-anim .bullet { animation: fireBullet 0.6s infinite; }
+        .shoot-anim .gun-body, .shoot-anim .gun-barrel { animation: recoil 0.2s infinite alternate; }
+        @keyframes fireBullet { 0% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(300px); opacity: 0; } }
+        @keyframes recoil { 0% { transform: translateX(0); } 100% { transform: translateX(-5px); } }
+
+        /* رسمة المبيان الاقتصادي */
+        .chart-container { width: 200px; height: 150px; border-left: 4px solid #333; border-bottom: 4px solid #333; display: none; align-items: flex-end; justify-content: space-around; padding: 0 10px; }
+        .bar { width: 30px; background: #27ae60; height: 0; opacity: 0.8; }
+        .grow-anim .bar:nth-child(1) { animation: growBar 1s forwards 0.1s; }
+        .grow-anim .bar:nth-child(2) { animation: growBar 1s forwards 0.3s; }
+        .grow-anim .bar:nth-child(3) { animation: growBar 1s forwards 0.5s; }
+        .grow-anim .arrow-up { animation: floatUp 1.5s infinite; }
+        @keyframes growBar { to { height: var(--h); } }
+        .arrow-up { width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-bottom: 15px solid #27ae60; position: absolute; top: -40px; right: 20px; opacity: 0; }
+        @keyframes floatUp { 0% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(-20px); opacity: 0; } }
+
+    </style>
+</head>
+<body>
+
+    <canvas id="nuke-canvas"></canvas>
+
+    <div id="animation-modal">
+        <div class="congrats-text">مبروك! تمت العملية بنجاح</div>
+        <div id="gun-anim-box" class="gun-container">
+            <div class="gun-barrel"></div><div class="gun-body"></div><div class="gun-handle"></div><div class="gun-mag"></div><div class="bullet"></div>
+        </div>
+        <div id="chart-anim-box" class="chart-container" style="position: relative;">
+            <div class="bar" style="--h: 40%;"></div><div class="bar" style="--h: 70%;"></div><div class="bar" style="--h: 95%;"></div><div class="arrow-up"></div>
+        </div>
+    </div>
+
+    <h1 class="game-title">لعبة United Stats الاستراتيجية</h1>
+
+    <div id="login-screen" class="card">
+        <h2>تسجيل الدخول وبدء الحكم</h2>
+        <select id="country-select">
+            <option value="" disabled selected>اختر الدولة</option>
+            <option value="المغرب">المغرب</option>
+            <option value="مصر">مصر</option>
+            <option value="السعودية">السعودية</option>
+            <option value="الجزائر">الجزائر</option>
+            <option value="الإمارات">الإمارات</option>
+        </select>
+        <input type="text" id="ruler-name" placeholder="اسم الحاكم">
+        <input type="email" id="email" placeholder="البريد الإلكتروني (Gmail)">
+        <input type="password" id="password" placeholder="كلمة المرور">
+        <button onclick="startGame()">تسجيل الدخول وحفظ الجلسة</button>
+    </div>
+
+    <div id="game-screen" class="hidden">
+        <div class="stats-bar">
+            <span>الحاكم: <span id="display-ruler"></span></span>
+            <span>الدولة: <span id="display-country"></span></span>
+            <span class="power-stat">هجوم: <span id="attack-display">0</span></span>
+            <span class="defense-stat">دفاع: <span id="defense-display">0</span></span>
+            <span>القوة: <span id="total-power-display">0</span></span>
+        </div>
+        <div class="stats-bar" style="background-color: #e8f4fc; border-color: #b8daff;">
+            <span>الناتج المحلي (GDP): <span id="gdp-display" style="color:blue; font-size:1.2em;">0</span> $</span>
+            <span>الدخل التلقائي: <span id="income-display" style="color:green;">0</span> $/ثانية</span>
+        </div>
+
+        <h3>الترسانة العسكرية</h3>
+        <div class="military-grid">
+            <div class="card military-section">
+                <h4>سلاح جوي</h4>
+                <p>مقاتلات حربية F-16</p>
+                <button class="buy-btn" onclick="buyItem('مقاتلة حربية', 5000, 0, 50, 20, 'weapon')">شراء (5000$)</button>
+            </div>
+            <div class="card military-section">
+                <h4>سلاح أرضي ونووي</h4>
+                <p>دبابة أبرامز</p>
+                <button class="buy-btn" onclick="buyItem('دبابة', 3000, 0, 30, 40, 'weapon')">شراء (3000$)</button>
+                <hr>
+                <p style="color: red; font-weight: bold;">رأس نووي تكتيكي</p>
+                <p>سلاح الدمار الشامل</p>
+                <button class="buy-btn" style="background: darkred;" onclick="buyItem('رأس نووي', 50000, 0, 500, 500, 'nuke')">شراء (50,000$)</button>
+            </div>
+            <div class="card military-section">
+                <h4>سلاح بحري</h4>
+                <p>بارجة بحرية</p>
+                <button class="buy-btn" onclick="buyItem('بارجة بحرية', 8000, 0, 40, 60, 'weapon')">شراء (8000$)</button>
+            </div>
+        </div>
+
+        <h3>مشاريع اقتصادية</h3>
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding: 10px 0;">
+                <div><strong>مصنع صلب</strong><small> (100$/ث)</small></div>
+                <button style="width: auto;" class="buy-btn" onclick="buyItem('مصنع صلب', 2000, 100, 0, 0, 'economy')">بناء (2000$)</button>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding: 10px 0;">
+                <div><strong>مشروع طاقة شمسية</strong><small> (500$/ث)</small></div>
+                <button style="width: auto;" class="buy-btn" onclick="buyItem('طاقة شمسية', 8000, 500, 0, 0, 'economy')">بناء (8000$)</button>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0;">
+                <div><strong>ميناء تجاري</strong><small> (2000$/ث)</small></div>
+                <button style="width: auto;" class="buy-btn" onclick="buyItem('ميناء تجاري', 25000, 2000, 0, 0, 'economy')">بناء (25000$)</button>
+            </div>
+        </div>
+        
+        <div class="card"><h3>سجل الممتلكات</h3><div id="inventory-list"></div></div>
+        <button onclick="logout()" style="background-color: #c0392b; width:auto; margin-top:20px;">تسجيل الخروج</button>
+    </div>
+
+    <script>
+        // --- حالة اللعبة ---
+        let gameState = {
+            rulerName: "", country: "", email: "",
+            gdp: 60000, // رصيد كافي لتجربة النووي
+            dailyIncome: 10, attack: 0, defense: 0, inventory: []
+        };
+        let incomeInterval;
+
+        window.onload = function() {
+            const saved = localStorage.getItem('unitedStatsV3');
+            if (saved) { gameState = JSON.parse(saved); showGameScreen(); }
+        };
+
+        function startGame() {
+            const name = document.getElementById('ruler-name').value;
+            const country = document.getElementById('country-select').value;
+            const email = document.getElementById('email').value;
+            const pass = document.getElementById('password').value;
+            if (!name || !country || !email || !pass) { alert("املأ جميع البيانات"); return; }
+            gameState.rulerName = name; gameState.country = country; gameState.email = email;
+            saveGame(); showGameScreen();
+        }
+
+        function showGameScreen() {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+            updateUI();
+            if (incomeInterval) clearInterval(incomeInterval);
+            incomeInterval = setInterval(() => { gameState.gdp += gameState.dailyIncome; saveGame(); updateUI(); }, 1000);
+        }
+
+        function buyItem(name, price, income, atk, def, type) {
+            if (gameState.gdp >= price) {
+                gameState.gdp -= price;
+                gameState.inventory.push(name);
+                gameState.dailyIncome += income;
+                gameState.attack += atk;
+                gameState.defense += def;
+                saveGame();
+                updateUI();
+                
+                // تحديد نوع الأنيميشن
+                if (type === 'nuke') {
+                    startNukeAnimation();
+                } else {
+                    playNormalAnimation(type);
+                }
+            } else {
+                alert("GDP غير كافي!");
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('display-ruler').innerText = gameState.rulerName;
+            document.getElementById('display-country').innerText = gameState.country;
+            document.getElementById('gdp-display').innerText = gameState.gdp.toLocaleString();
+            document.getElementById('income-display').innerText = gameState.dailyIncome.toLocaleString();
+            document.getElementById('attack-display').innerText = gameState.attack;
+            document.getElementById('defense-display').innerText = gameState.defense;
+            document.getElementById('total-power-display').innerText = gameState.attack + gameState.defense;
+            const list = document.getElementById('inventory-list');
+            list.innerHTML = gameState.inventory.length ? gameState.inventory.map(i => `<span>• ${i} </span>`).join('') : "لا يوجد";
+        }
+
+        function saveGame() { localStorage.setItem('unitedStatsV3', JSON.stringify(gameState)); }
+        function logout() { localStorage.removeItem('unitedStatsV3'); location.reload(); }
+
+        // --- الأنيميشن العادي ---
+        function playNormalAnimation(type) {
+            const modal = document.getElementById('animation-modal');
+            const gunBox = document.getElementById('gun-anim-box');
+            const chartBox = document.getElementById('chart-anim-box');
+            modal.classList.add('active');
+            gunBox.style.display = 'none'; gunBox.classList.remove('shoot-anim');
+            chartBox.style.display = 'none'; chartBox.classList.remove('grow-anim');
+
+            if (type === 'weapon') {
+                gunBox.style.display = 'block'; setTimeout(() => gunBox.classList.add('shoot-anim'), 100);
+            } else if (type === 'economy') {
+                chartBox.style.display = 'flex'; setTimeout(() => chartBox.classList.add('grow-anim'), 100);
+            }
+            setTimeout(() => { modal.classList.remove('active'); }, 2500);
+        }
+
+        // ==========================================
+        // === محرك الانفجار النووي (HTML Canvas) ===
+        // ==========================================
+        
+        const canvas = document.getElementById('nuke-canvas');
+        const ctx = canvas.getContext('2d');
+        let width, height, centerX, centerY;
+        let particles = [];
+        let animationFrameId;
+        let time = 0;
+
+        function resizeCanvas() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            centerX = width / 2;
+            centerY = height / 2;
+        }
+
+        class Particle {
+            constructor(type) {
+                this.type = type; // 'spark', 'smoke', 'shock'
+                this.x = centerX;
+                this.y = centerY;
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * (type === 'spark' ? 20 : 5);
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.life = 1.0;
+                this.decay = Math.random() * 0.01 + 0.005;
+                this.size = Math.random() * 5 + 1;
+                this.color = type === 'spark' 
+                    ? `hsl(${Math.random()*60 + 10}, 100%, 50%)` // برتقالي وأصفر
+                    : `rgba(50, 50, 50, 0.5)`; // دخان رمادي
+                
+                if (type === 'smoke') {
+                    this.vy -= 2; // الدخان يصعد للأعلى
+                    this.size = Math.random() * 20 + 10;
+                    this.decay = 0.002;
+                }
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life -= this.decay;
+                
+                // جاذبية واحتكاك
+                if (this.type === 'spark') {
+                    this.vx *= 0.95; 
+                    this.vy *= 0.95;
+                    this.vy += 0.1; // جاذبية خفيفة
+                } else {
+                    this.vx *= 0.98;
+                    this.size += 0.5; // الدخان يتمدد
+                }
+            }
+            draw(ctx) {
+                ctx.globalAlpha = this.life;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function startNukeAnimation() {
+            resizeCanvas();
+            canvas.style.display = 'block';
+            particles = [];
+            time = 0;
+            
+            // تهيئة الجسيمات
+            for(let i=0; i<300; i++) particles.push(new Particle('spark'));
+            for(let i=0; i<100; i++) particles.push(new Particle('smoke'));
+
+            cancelAnimationFrame(animationFrameId);
+            loop();
+        }
+
+        function loop() {
+            time++;
+            
+            // 1. مسح الشاشة (تأثير Motion Blur خفيف عبر مسح غير كامل)
+            ctx.fillStyle = 'rgba(0, 0, 20, 0.2)'; // خلفية زرقاء داكنة جداً
+            ctx.fillRect(0, 0, width, height);
+
+            // اهتزاز الكاميرا (Camera Shake)
+            let shake = 0;
+            if (time < 50) shake = (50 - time) * 0.5;
+            ctx.save();
+            ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
+
+            // 2. الوميض الأولي (Flash)
+            if (time < 5) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.fillRect(-10, -10, width+20, height+20);
+            }
+
+            // 3. كرة الطاقة المتوسعة (Energy Sphere)
+            let sphereRadius = time * 8;
+            if (time < 100) {
+                let gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, sphereRadius);
+                gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+                gradient.addColorStop(0.3, 'rgba(255, 255, 0, 0.8)');
+                gradient.addColorStop(0.6, 'rgba(255, 140, 0, 0.6)');
+                gradient.addColorStop(1, 'rgba(255, 69, 0, 0)'); // شفاف في الحواف
+
+                ctx.globalAlpha = 1 - (time / 120); // يتلاشى مع الوقت
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, sphereRadius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // 4. موجة الصدمة (Shockwave Ring)
+            let shockRadius = time * 20;
+            if (shockRadius < width * 1.5) {
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, shockRadius, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(255, 255, 255, ${1 - time/60})`;
+                ctx.lineWidth = 50 - time/2;
+                if (ctx.lineWidth < 0) ctx.lineWidth = 0;
+                ctx.stroke();
+            }
+
+            // 5. رسم وتحديث الجسيمات
+            particles.forEach((p, index) => {
+                p.update();
+                p.draw(ctx);
+                if (p.life <= 0) particles.splice(index, 1);
+            });
+
+            ctx.restore(); // إلغاء تأثير الاهتزاز للإطار التالي
+
+            // إنهاء الأنيميشن
+            if (time < 250) {
+                animationFrameId = requestAnimationFrame(loop);
+            } else {
+                canvas.style.display = 'none';
+                ctx.clearRect(0,0,width,height);
+            }
+        }
+    </script>
+</body>
+</html>
